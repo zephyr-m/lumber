@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лесопилка – Симулятор</title>
+    <!-- Pico CSS (легковесный, без классов) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+    <main class="container">
+        <h1>🌲 Производственная цепочка</h1>
+
+        <!-- Лес -->
+        <article>
+            <header>
+                <strong>🌳 Лес</strong> — бесконечный источник
+            </header>
+            <p>Доступно: ∞ деревьев</p>
+        </article>
+
+        <!-- Лесоруб -->
+        <article>
+            <header>
+                <strong>🪓 Лесоруб</strong>
+            </header>
+            <p>Статус: <span id="lumberjack-status">ожидание</span></p>
+            <progress id="lumberjack-progress" value="0" max="1"></progress>
+            <footer>
+                <small>Произведено: <span id="lumberjack-produced">0</span> брёвен</small>
+            </footer>
+        </article>
+
+        <!-- Склад брёвен -->
+        <article>
+            <header>📦 Склад брёвен</header>
+            <p>Количество: <span id="logs-count">0</span> шт.</p>
+        </article>
+
+        <!-- Пильщик -->
+        <article>
+            <header>
+                <strong>🪚 Пильщик</strong>
+            </header>
+            <p>Статус: <span id="sawyer-status">ожидание</span></p>
+            <progress id="sawyer-progress" value="0" max="1"></progress>
+            <footer>
+                <small>Произведено: <span id="sawyer-produced">0</span> досок</small>
+            </footer>
+        </article>
+
+        <!-- Склад досок -->
+        <article>
+            <header>📦 Склад досок</header>
+            <p>Количество: <span id="planks-count">0</span> шт.</p>
+        </article>
+
+        <!-- Столяр -->
+        <article>
+            <header>
+                <strong>🔨 Столяр</strong>
+            </header>
+            <p>Статус: <span id="carpenter-status">ожидание</span></p>
+            <progress id="carpenter-progress" value="0" max="1"></progress>
+            <footer>
+                <small>Произведено: <span id="carpenter-produced">0</span> заборов</small>
+            </footer>
+        </article>
+
+        <!-- Склад готовой продукции -->
+        <article>
+            <header>📦 Склад готовой продукции</header>
+            <p>Количество: <span id="fences-count">0</span> заборов</p>
+        </article>
+    </main>
+
+    <script>
+        // ---------- состояние ----------
+        const resources = { logs: 0, planks: 0, fences: 0 };
+
+        const workers = [
+            {
+                role: 'lumberjack',
+                status: 'idle',  // idle | working | waiting
+                progress: 0,
+                duration: 3,
+                produced: 0,
+                inputCheck: () => true, // лес бесконечен
+                inputResource: null,
+                inputAmount: 0,
+                outputResource: 'logs',
+                outputAmount: 1
+            },
+            {
+                role: 'sawyer',
+                status: 'waiting',
+                progress: 0,
+                duration: 2,
+                produced: 0,
+                inputCheck: () => resources.logs > 0,
+                inputResource: 'logs',
+                inputAmount: 1,
+                outputResource: 'planks',
+                outputAmount: 2
+            },
+            {
+                role: 'carpenter',
+                status: 'waiting',
+                progress: 0,
+                duration: 5,
+                produced: 0,
+                inputCheck: () => resources.planks >= 4,
+                inputResource: 'planks',
+                inputAmount: 4,
+                outputResource: 'fences',
+                outputAmount: 1
+            }
+        ];
+
+        // ---------- обновление (100 мс) ----------
+        function gameLoop() {
+            const delta = 0.1; // 100 мс
+
+            for (const w of workers) {
+                // пытаемся начать работу
+                if (w.status === 'idle' || w.status === 'waiting') {
+                    if (w.inputCheck()) {
+                        w.status = 'working';
+                        w.progress = 0;
+                    }
+                }
+
+                // если работает – увеличиваем прогресс
+                if (w.status === 'working') {
+                    w.progress += delta;
+
+                    if (w.progress >= w.duration) {
+                        // завершаем работу
+                        if (w.inputResource && w.inputAmount > 0) {
+                            resources[w.inputResource] -= w.inputAmount;
+                        }
+                        if (w.outputResource && w.outputAmount > 0) {
+                            resources[w.outputResource] += w.outputAmount;
+                        }
+                        w.produced++;
+                        w.progress = 0;
+
+                        // проверяем, можно ли продолжать
+                        if (w.inputCheck()) {
+                            w.status = 'working';
+                        } else {
+                            w.status = 'waiting';
+                        }
+                    }
+                }
+            }
+
+            updateUI();
+        }
+
+        function updateUI() {
+            // Лесоруб
+            const lj = workers[0];
+            document.getElementById('lumberjack-status').textContent =
+                lj.status === 'working' ? `рубит дерево... (${lj.progress.toFixed(1)}/${lj.duration.toFixed(1)} сек)` :
+                lj.status === 'waiting' ? 'ожидает' : 'бездействует';
+            document.getElementById('lumberjack-progress').value = lj.status === 'working' ? lj.progress / lj.duration : 0;
+            document.getElementById('lumberjack-produced').textContent = lj.produced;
+
+            // Пильщик
+            const saw = workers[1];
+            document.getElementById('sawyer-status').textContent =
+                saw.status === 'working' ? `пилит бревно... (${saw.progress.toFixed(1)}/${saw.duration.toFixed(1)} сек)` :
+                saw.status === 'waiting' ? 'ожидает (нет брёвен)' : 'бездействует';
+            document.getElementById('sawyer-progress').value = saw.status === 'working' ? saw.progress / saw.duration : 0;
+            document.getElementById('sawyer-produced').textContent = saw.produced;
+
+            // Столяр
+            const carp = workers[2];
+            document.getElementById('carpenter-status').textContent =
+                carp.status === 'working' ? `делает забор... (${carp.progress.toFixed(1)}/${carp.duration.toFixed(1)} сек)` :
+                carp.status === 'waiting' ? `ожидает (нужно 4 доски, есть ${resources.planks})` : 'бездействует';
+            document.getElementById('carpenter-progress').value = carp.status === 'working' ? carp.progress / carp.duration : 0;
+            document.getElementById('carpenter-produced').textContent = carp.produced;
+
+            // Склады
+            document.getElementById('logs-count').textContent = resources.logs;
+            document.getElementById('planks-count').textContent = resources.planks;
+            document.getElementById('fences-count').textContent = resources.fences;
+        }
+
+        // Первый рендер и цикл
+        updateUI();
+        setInterval(gameLoop, 100);
+    </script>
+</body>
+</html>
