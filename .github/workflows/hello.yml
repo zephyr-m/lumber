@@ -1,0 +1,11 @@
+name: Hello World CI
+on: [push]
+
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Print greeting
+        run: echo "👋 Привет, GitHub Actions!"
