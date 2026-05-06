@@ -1,0 +1,13 @@
+{
+  "name": "lumber-simulation",
+  "version": "1.0.0",
+  "description": "Simple production chain simulation – lumber, planks, fences",
+  "type": "module",
+  "scripts": {
+    "start": "npx http-server -c-1 ."
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
+
